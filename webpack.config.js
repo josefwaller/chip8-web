@@ -11,6 +11,7 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       title: "CHIP-8 Web Emulator",
+      template: "./index.html",
     }),
   ],
   devServer: {
@@ -22,6 +23,22 @@ module.exports = {
       {
         test: /\.wasm$/,
         type: "asset/inline",
+      },
+      {
+        test: /\.(js|jsx)$/,
+        exclude: /node_modules/,
+        use: { loader: "babel-loader" },
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [
+          // Creates `style` nodes from JS strings
+          "style-loader",
+          // Translates CSS into CommonJS
+          "css-loader",
+          // Compiles Sass to CSS
+          "sass-loader",
+        ],
       },
     ],
   },

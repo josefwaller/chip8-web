@@ -1,7 +1,6 @@
-import init, { add } from "emulator";
-import wasmData from "emulator/emulator_bg.wasm";
+import React from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.jsx";
 
-await init(wasmData);
-console.log(add);
-let i = add(1, 2);
-alert("Hello world!" + i);
+const root = createRoot(document.getElementById("container"));
+root.render(<App />);
