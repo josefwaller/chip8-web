@@ -1,6 +1,6 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App.jsx";
+import init, { start_main_loop } from "emulator";
 
-const root = createRoot(document.getElementById("container"));
-root.render(<App />);
+import wasmData from "emulator/emulator_bg.wasm";
+await init(wasmData);
+
+await start_main_loop();
