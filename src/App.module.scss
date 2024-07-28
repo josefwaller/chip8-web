@@ -1,3 +1,37 @@
-.text {
-    color: blue;
+body {
+  background-color: #444444;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+}
+.canvas {
+  width: 800px;
+  height: 400px;
+  background-color: white;
+  margin: 2rem;
+}
+.inputs {
+  margin-top: 5rem;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  width: 7rem;
+}
+
+.buttonContainer {
+  flex-basis: 33%;
+  text-align: center;
+  .button {
+    width: 2rem;
+    height: 2rem;
+    background-color: white;
+    text-align: center;
+  }
 }
