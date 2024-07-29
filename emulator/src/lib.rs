@@ -35,14 +35,14 @@ pub fn get_canvas() -> WebGl2RenderingContext {
 }
 
 #[wasm_bindgen]
-pub fn start_main_loop() {
+pub fn start_main_loop(rom: &[u8]) {
+    let mut p = Processor::new();
+    p.load_program(rom);
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     log("Starting main loop");
 
     let r: Rc<RefCell<Option<Closure<dyn FnMut()>>>> = Rc::new(RefCell::new(None));
     let r_clone = r.clone();
-
-    let mut i = 0;
 
     let context = get_canvas();
 
@@ -50,8 +50,8 @@ pub fn start_main_loop() {
     // Generate vertices for screen
     const MIN_X: f32 = -1.0;
     const MAX_X: f32 = 1.0;
-    const MIN_Y: f32 = -1.0;
-    const MAX_Y: f32 = 1.0;
+    const MIN_Y: f32 = 1.0;
+    const MAX_Y: f32 = -1.0;
     const SCREEN_WIDTH: usize = 64;
     const SCREEN_HEIGHT: usize = 32;
     const PIXEL_WIDTH: f32 = (MAX_X - MIN_X) / SCREEN_WIDTH as f32;
@@ -134,18 +134,29 @@ pub fn start_main_loop() {
     );
     context.enable_vertex_attrib_array(cidx as u32);
 
-    log(format!("{} indices", indices_len).as_str());
-    *r_clone.borrow_mut() = Some(Closure::new(move || {
-        log("Main loop called");
+    let mut last_time = get_window()
+        .performance()
+        .expect("Can't get performance!")
+        .now();
 
-        i += 1;
-        let new_colors: Vec<f32> = (0..(4 * SCREEN_WIDTH * SCREEN_HEIGHT))
-            .map(|_| {
-                let c = (i % 255) as f32 / 256.0;
-                vec![c, c, c]
-            })
-            .flatten()
-            .collect();
+    *r_clone.borrow_mut() = Some(Closure::new(move || {
+        for _ in 0..100 {
+            p.step();
+        }
+
+        let mut new_colors = Vec::new();
+        for x in 0..SCREEN_WIDTH {
+            for y in 0..SCREEN_HEIGHT {
+                for _ in 0..12 {
+                    new_colors.push(if p.get_pixel_at(x as u8, y as u8) {
+                        0.0
+                    } else {
+                        1.0
+                    })
+                }
+            }
+        }
+
         buffer_data_f32(
             &context,
             &colors_buffer,
@@ -153,15 +164,20 @@ pub fn start_main_loop() {
             new_colors,
         );
 
-        context.clear_color((i % 256) as f32 / 255.0, 0.0, 0.0, 1.0);
-        context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
-
         context.draw_elements_with_i32(
             WebGl2RenderingContext::TRIANGLES,
             indices_len as i32,
             WebGl2RenderingContext::UNSIGNED_INT,
             0,
         );
+        let new_time = get_window()
+            .performance()
+            .expect("Can't get performance!")
+            .now();
+        if new_time - last_time >= 1000.0 / 60.0 {
+            p.on_tick();
+            last_time = new_time;
+        }
 
         get_window()
             .request_animation_frame(r.borrow().as_ref().unwrap().as_ref().unchecked_ref())
