@@ -1,12 +1,16 @@
 pub mod web_gl;
 
+use js_sys::Function;
 use rust_chip8_opengl::processor::Processor;
 use std::{cell::RefCell, panic, rc::Rc};
 use wasm_bindgen::prelude::*;
 use web_gl::{
     buffer_data_f32, create_buffer_f32, create_buffer_i32, create_program, create_vertex_array,
 };
-use web_sys::{HtmlCanvasElement, HtmlInputElement, WebGl2RenderingContext, Window};
+use web_sys::{
+    window, Document, Event, HtmlCanvasElement, HtmlElement, HtmlInputElement,
+    WebGl2RenderingContext, Window,
+};
 
 #[wasm_bindgen]
 extern "C" {
@@ -14,24 +18,28 @@ extern "C" {
     fn log(s: &str);
 }
 
-pub fn get_window() -> Window {
+fn get_window() -> Window {
     web_sys::window().expect("no global `window` exists")
+}
+
+fn get_document() -> Document {
+    get_window().document().expect("Could not get document")
 }
 
 pub fn get_canvas() -> WebGl2RenderingContext {
     let canvas = get_window()
         .document()
-        .unwrap()
+        .expect("Could not get document")
         .get_element_by_id("canvas")
-        .unwrap();
+        .expect("Could not get canvas");
     canvas
         .dyn_into::<HtmlCanvasElement>()
-        .unwrap()
+        .expect("Could not transform canvas")
         .get_context("webgl2")
-        .unwrap()
+        .expect("Could not get webgl2 context")
         .unwrap()
         .dyn_into::<WebGl2RenderingContext>()
-        .unwrap()
+        .expect("Could not cast into rendering context")
 }
 
 #[wasm_bindgen]
@@ -44,6 +52,7 @@ pub fn start_main_loop(rom: &[u8]) {
     let r: Rc<RefCell<Option<Closure<dyn FnMut()>>>> = Rc::new(RefCell::new(None));
     let r_clone = r.clone();
 
+    let mut document = get_window().document().unwrap();
     let context = get_canvas();
 
     let program = create_program(&context);
@@ -134,6 +143,9 @@ pub fn start_main_loop(rom: &[u8]) {
     );
     context.enable_vertex_attrib_array(cidx as u32);
 
+    let inputs = Rc::new(RefCell::new([false; 16]));
+    let mut inputs_mut = inputs.clone();
+
     let mut last_time = get_window()
         .performance()
         .expect("Can't get performance!")
@@ -141,11 +153,9 @@ pub fn start_main_loop(rom: &[u8]) {
     let mut last_tick_time = last_time;
 
     *r_clone.borrow_mut() = Some(Closure::new(move || {
-        let clock_speed = get_window()
-            .document()
-            .unwrap()
+        let clock_speed = get_document()
             .get_element_by_id("clock-speed")
-            .unwrap()
+            .expect("Could not get clock-speed")
             .dyn_into::<HtmlInputElement>()
             .unwrap()
             .value_as_number();
@@ -174,6 +184,10 @@ pub fn start_main_loop(rom: &[u8]) {
         // )
         // .as_str());
         last_time = new_time;
+
+        if inputs.borrow()[0] {
+            log("Hello world");
+        }
 
         let mut new_colors = Vec::new();
         for x in 0..SCREEN_WIDTH {
@@ -205,6 +219,19 @@ pub fn start_main_loop(rom: &[u8]) {
             .request_animation_frame(r.borrow().as_ref().unwrap().as_ref().unchecked_ref())
             .expect("Couldn't request animation frame");
     }));
+
+    let on_click = Closure::<dyn FnMut()>::new(move || {
+        log("Called click function!");
+        inputs_mut.borrow_mut()[0] = true;
+    });
+
+    document
+        .get_element_by_id("button_0")
+        .expect("Couldn't find button 0")
+        .dyn_ref::<HtmlElement>()
+        .expect("Button 0 should be an HTML element")
+        .set_onclick(Some(on_click.as_ref().unchecked_ref()));
+    on_click.forget();
 
     get_window()
         .request_animation_frame(r_clone.borrow().as_ref().unwrap().as_ref().unchecked_ref())

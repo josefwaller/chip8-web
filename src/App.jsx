@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
 
+import init, { start_main_loop } from "emulator";
+
+import wasmData from "emulator/emulator_bg.wasm";
+await init(wasmData);
+
 import * as styles from "./App.module.scss";
 
 export default function App() {
-  const [worker, setWorker] = useState(null);
   const [inputStates, setInputStates] = useState(
     Object.fromEntries([...Array(16)].map((_, i) => [i, false]))
   );
@@ -19,19 +23,23 @@ export default function App() {
     });
 
   useEffect(() => {
-    if (worker) worker.postMessage({ type: "set_inputs", value: inputStates });
-  }, [inputStates]);
+    document.getElementById("rom-input").addEventListener("change", (event) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        console.log(e);
+        console.log(e.target.result);
+        start_main_loop(new Uint8Array(e.target.result));
+      };
+      reader.readAsArrayBuffer(event.target.files[0]);
+    });
+  });
 
-  window.onload = () => {
-    console.log(document);
-    const worker = new Worker(new URL("./runner.js", import.meta.url));
-    console.log("Loaded worker");
-    worker.postMessage("Posting here");
-    setWorker(worker);
-  };
   return (
     <div className={styles.container}>
-      <canvas id="canvas" className={styles.canvas} />
+      <canvas id="canvas" width="800" height="400" className={styles.canvas} />
+      <input id="rom-input" type="file" />
+      <input type="range" min="1" max="1000" id="clock-speed" value="500" />
+      <button type="button" id="button_0"></button>
       <div className={styles.inputs}>
         {[...Array(16).keys()].map((k) => (
           <React.Fragment key={k}>
