@@ -45,12 +45,7 @@ export default function App() {
           <React.Fragment key={k}>
             {k % 3 == 0 && <br />}
             <div className={styles.buttonContainer} key={k}>
-              <button
-                className={styles.button}
-                onMouseDown={() => pressInput(k)}
-                onMouseUp={() => releaseInput(k)}
-                onMouseLeave={() => releaseInput(k)}
-              >
+              <button className={styles.button} id={`input_${k}`}>
                 {k.toString(16).toUpperCase()}
               </button>
             </div>

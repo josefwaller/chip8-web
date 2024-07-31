@@ -8,7 +8,7 @@ use web_gl::{
     buffer_data_f32, create_buffer_f32, create_buffer_i32, create_program, create_vertex_array,
 };
 use web_sys::{
-    window, Document, Event, HtmlCanvasElement, HtmlElement, HtmlInputElement,
+    window, Document, Element, HtmlCanvasElement, HtmlElement, HtmlInputElement,
     WebGl2RenderingContext, Window,
 };
 
@@ -26,7 +26,16 @@ fn get_document() -> Document {
     get_window().document().expect("Could not get document")
 }
 
-pub fn get_canvas() -> WebGl2RenderingContext {
+fn get_element_by_id(id: &str) -> HtmlElement {
+    get_document()
+        .get_element_by_id(id)
+        .expect(format!("Could not find element with id #{}", id).as_str())
+        .dyn_ref::<HtmlElement>()
+        .expect(format!("Could not cast #{} to HtmlElement", id).as_str())
+        .to_owned()
+}
+
+fn get_canvas() -> WebGl2RenderingContext {
     let canvas = get_window()
         .document()
         .expect("Could not get document")
@@ -52,7 +61,6 @@ pub fn start_main_loop(rom: &[u8]) {
     let r: Rc<RefCell<Option<Closure<dyn FnMut()>>>> = Rc::new(RefCell::new(None));
     let r_clone = r.clone();
 
-    let mut document = get_window().document().unwrap();
     let context = get_canvas();
 
     let program = create_program(&context);
@@ -144,7 +152,18 @@ pub fn start_main_loop(rom: &[u8]) {
     context.enable_vertex_attrib_array(cidx as u32);
 
     let inputs = Rc::new(RefCell::new([false; 16]));
-    let mut inputs_mut = inputs.clone();
+
+    for i in 0..16 {
+        let movable_inputs = inputs.clone();
+        let on_click = Closure::<dyn FnMut()>::new(move || {
+            let mut x = movable_inputs.borrow_mut();
+            x[i] = !x[i];
+        });
+
+        get_element_by_id(format!("input_{}", i).as_str())
+            .set_onclick(Some(on_click.as_ref().unchecked_ref()));
+        on_click.forget();
+    }
 
     let mut last_time = get_window()
         .performance()
@@ -185,9 +204,7 @@ pub fn start_main_loop(rom: &[u8]) {
         // .as_str());
         last_time = new_time;
 
-        if inputs.borrow()[0] {
-            log("Hello world");
-        }
+        p.update_inputs(*inputs.borrow());
 
         let mut new_colors = Vec::new();
         for x in 0..SCREEN_WIDTH {
@@ -219,19 +236,6 @@ pub fn start_main_loop(rom: &[u8]) {
             .request_animation_frame(r.borrow().as_ref().unwrap().as_ref().unchecked_ref())
             .expect("Couldn't request animation frame");
     }));
-
-    let on_click = Closure::<dyn FnMut()>::new(move || {
-        log("Called click function!");
-        inputs_mut.borrow_mut()[0] = true;
-    });
-
-    document
-        .get_element_by_id("button_0")
-        .expect("Couldn't find button 0")
-        .dyn_ref::<HtmlElement>()
-        .expect("Button 0 should be an HTML element")
-        .set_onclick(Some(on_click.as_ref().unchecked_ref()));
-    on_click.forget();
 
     get_window()
         .request_animation_frame(r_clone.borrow().as_ref().unwrap().as_ref().unchecked_ref())
