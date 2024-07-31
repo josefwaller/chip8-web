@@ -53,8 +53,8 @@ fn get_canvas() -> WebGl2RenderingContext {
 
 #[wasm_bindgen]
 pub fn start_main_loop(rom: &[u8]) {
-    let mut p = Processor::new();
-    p.load_program(rom);
+    let mut p = Rc::new(RefCell::new(Processor::new()));
+    p.borrow_mut().load_program(rom);
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     log("Starting main loop");
 
@@ -151,18 +151,30 @@ pub fn start_main_loop(rom: &[u8]) {
     );
     context.enable_vertex_attrib_array(cidx as u32);
 
-    let inputs = Rc::new(RefCell::new([false; 16]));
-
     for i in 0..16 {
-        let movable_inputs = inputs.clone();
+        let mut inputs: [bool; 16] = core::array::from_fn(|i| p.borrow().get_input_state(i));
+        let p_clone = p.clone();
         let on_click = Closure::<dyn FnMut()>::new(move || {
-            let mut x = movable_inputs.borrow_mut();
-            x[i] = !x[i];
+            inputs[i] = true;
+            p_clone.borrow_mut().update_inputs(inputs);
         });
+        let id = format!("input_{}", i).as_str().to_owned();
 
-        get_element_by_id(format!("input_{}", i).as_str())
-            .set_onclick(Some(on_click.as_ref().unchecked_ref()));
+        get_element_by_id(&id)
+            .add_event_listener_with_callback("mousedown", on_click.as_ref().unchecked_ref())
+            .expect("Unable to add mousedown event listener");
         on_click.forget();
+
+        let p_clone = p.clone();
+        let on_release = Closure::<dyn FnMut()>::new(move || {
+            inputs[i] = false;
+            p_clone.borrow_mut().update_inputs(inputs);
+            p_clone.borrow_mut().on_key_release(i as u8);
+        });
+        get_element_by_id(&id)
+            .add_event_listener_with_callback("mouseup", on_release.as_ref().unchecked_ref())
+            .expect("Unable to add mouseup event listener");
+        on_release.forget();
     }
 
     let mut last_time = get_window()
@@ -184,14 +196,14 @@ pub fn start_main_loop(rom: &[u8]) {
             .now();
 
         if new_time - last_tick_time >= 1000.0 / 60.0 {
-            p.on_tick();
+            p.borrow_mut().on_tick();
             last_tick_time = new_time;
         }
         let dt = new_time - last_time;
 
         let n_steps = (dt / 1000.0 * clock_speed) as u32;
         for _ in 0..n_steps {
-            p.step();
+            p.borrow_mut().step();
         }
         // Uncomment this for logging
         // log(format!(
@@ -204,13 +216,11 @@ pub fn start_main_loop(rom: &[u8]) {
         // .as_str());
         last_time = new_time;
 
-        p.update_inputs(*inputs.borrow());
-
         let mut new_colors = Vec::new();
         for x in 0..SCREEN_WIDTH {
             for y in 0..SCREEN_HEIGHT {
                 for _ in 0..12 {
-                    new_colors.push(if p.get_pixel_at(x as u8, y as u8) {
+                    new_colors.push(if p.borrow().get_pixel_at(x as u8, y as u8) {
                         0.0
                     } else {
                         1.0
