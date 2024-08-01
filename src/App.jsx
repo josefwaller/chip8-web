@@ -39,7 +39,8 @@ export default function App() {
       <canvas id="canvas" width="800" height="400" className={styles.canvas} />
       <input id="rom-input" type="file" />
       <input type="range" min="1" max="2000" id="clock-speed" />
-      <button type="button" id="button_0"></button>
+      <input type="color" id="foreground-color" />
+      <input type="color" id="background-color" />
       <div className={styles.inputs}>
         {[
           0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0xa, 0x0,
@@ -54,7 +55,6 @@ export default function App() {
           </React.Fragment>
         ))}
       </div>
-      <input type="file" />
     </div>
   );
 }

@@ -1,15 +1,14 @@
 pub mod web_gl;
 
-use js_sys::Function;
 use rust_chip8_opengl::processor::Processor;
-use std::{cell::RefCell, panic, rc::Rc};
+use std::{array, cell::RefCell, panic, rc::Rc};
 use wasm_bindgen::prelude::*;
 use web_gl::{
     buffer_data_f32, create_buffer_f32, create_buffer_i32, create_program, create_vertex_array,
 };
 use web_sys::{
-    window, Document, Element, HtmlCanvasElement, HtmlElement, HtmlInputElement,
-    WebGl2RenderingContext, Window,
+    Document, Event, HtmlCanvasElement, HtmlElement, HtmlInputElement, WebGl2RenderingContext,
+    Window,
 };
 
 #[wasm_bindgen]
@@ -35,6 +34,44 @@ fn get_element_by_id(id: &str) -> HtmlElement {
         .to_owned()
 }
 
+fn get_input_by_id(id: &str) -> HtmlInputElement {
+    get_element_by_id(id)
+        .dyn_into::<HtmlInputElement>()
+        .expect(format!("Could not cast #{} into an HtmlInputElement", id).as_str())
+}
+
+fn add_input_event_listener<F: FnMut(&str) + 'static>(
+    id: &'static str,
+    event_type: &'static str,
+    mut callback: F,
+) {
+    let f = Closure::<dyn FnMut(_)>::new(move |e: Event| {
+        let value = e
+            .current_target()
+            .expect(format!("{} event on #{} had no current_target!", event_type, id).as_str())
+            .dyn_into::<HtmlInputElement>()
+            .expect(format!("Could not convert #{} to HtmlInputElement", id).as_str())
+            .value()
+            .as_str()
+            .to_owned();
+        callback(&value);
+    });
+    get_input_by_id(id)
+        .add_event_listener_with_callback(event_type, f.as_ref().unchecked_ref())
+        .expect(format!("Unable to add ann event listener on #{}", id).as_str());
+    // Carefull!!!
+    f.forget();
+}
+
+fn hex_string_to_color(hex: &str) -> [f32; 3] {
+    return array::from_fn(|i| {
+        u32::from_str_radix(&hex[(2 * i + 1)..(2 * i + 3)], 16)
+            .expect(format!("Invalid string passed to hex_string_to_color: '{}'", hex).as_str())
+            as f32
+            / 0xFF as f32
+    });
+}
+
 fn get_canvas() -> WebGl2RenderingContext {
     let canvas = get_window()
         .document()
@@ -51,10 +88,26 @@ fn get_canvas() -> WebGl2RenderingContext {
         .expect("Could not cast into rendering context")
 }
 
+/*
+ * This should contain everything that needs to be passed between JS and rust
+ * Set using onChange events, then accessed in the main loop
+ */
+struct EmulatorInfo {
+    p: Processor,
+    inputs: [bool; 16],
+    foreground_color: [f32; 3],
+    background_color: [f32; 3],
+}
+
 #[wasm_bindgen]
 pub fn start_main_loop(rom: &[u8]) {
-    let mut p = Rc::new(RefCell::new(Processor::new()));
-    p.borrow_mut().load_program(rom);
+    let emu = Rc::new(RefCell::new(EmulatorInfo {
+        p: Processor::new(),
+        inputs: [false; 16],
+        foreground_color: [1.0, 1.0, 1.0],
+        background_color: [0.0, 0.0, 0.0],
+    }));
+    emu.borrow_mut().p.load_program(rom);
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     log("Starting main loop");
 
@@ -151,12 +204,19 @@ pub fn start_main_loop(rom: &[u8]) {
     );
     context.enable_vertex_attrib_array(cidx as u32);
 
+    let emu_clone = emu.clone();
+    add_input_event_listener("foreground-color", "change", move |v| {
+        emu_clone.borrow_mut().foreground_color = hex_string_to_color(v);
+    });
+    let emu_clone = emu.clone();
+    add_input_event_listener("background-color", "change", move |v| {
+        emu_clone.borrow_mut().background_color = hex_string_to_color(v);
+    });
+
     for i in 0..16 {
-        let mut inputs: [bool; 16] = core::array::from_fn(|i| p.borrow().get_input_state(i));
-        let p_clone = p.clone();
+        let emu_clone = emu.clone();
         let on_click = Closure::<dyn FnMut()>::new(move || {
-            inputs[i] = true;
-            p_clone.borrow_mut().update_inputs(inputs);
+            emu_clone.borrow_mut().inputs[i] = true;
         });
         let id = format!("input_{}", i).as_str().to_owned();
 
@@ -165,11 +225,10 @@ pub fn start_main_loop(rom: &[u8]) {
             .expect("Unable to add mousedown event listener");
         on_click.forget();
 
-        let p_clone = p.clone();
+        let emu_clone = emu.clone();
         let on_release = Closure::<dyn FnMut()>::new(move || {
-            inputs[i] = false;
-            p_clone.borrow_mut().update_inputs(inputs);
-            p_clone.borrow_mut().on_key_release(i as u8);
+            emu_clone.borrow_mut().inputs[i] = false;
+            emu_clone.borrow_mut().p.on_key_release(i as u8);
         });
         get_element_by_id(&id)
             .add_event_listener_with_callback("mouseup", on_release.as_ref().unchecked_ref())
@@ -183,7 +242,13 @@ pub fn start_main_loop(rom: &[u8]) {
         .now();
     let mut last_tick_time = last_time;
 
+    let emu_clone = emu.clone();
     *r_clone.borrow_mut() = Some(Closure::new(move || {
+        let mut e = emu_clone.borrow_mut();
+        let inputs = e.inputs;
+        let foreground_color = e.foreground_color;
+        let background_color = e.background_color;
+        let p = &mut e.p;
         let clock_speed = get_document()
             .get_element_by_id("clock-speed")
             .expect("Could not get clock-speed")
@@ -196,14 +261,16 @@ pub fn start_main_loop(rom: &[u8]) {
             .now();
 
         if new_time - last_tick_time >= 1000.0 / 60.0 {
-            p.borrow_mut().on_tick();
+            p.on_tick();
             last_tick_time = new_time;
         }
         let dt = new_time - last_time;
 
+        p.update_inputs(inputs);
+
         let n_steps = (dt / 1000.0 * clock_speed) as u32;
         for _ in 0..n_steps {
-            p.borrow_mut().step();
+            p.step();
         }
         // Uncomment this for logging
         // log(format!(
@@ -219,12 +286,12 @@ pub fn start_main_loop(rom: &[u8]) {
         let mut new_colors = Vec::new();
         for x in 0..SCREEN_WIDTH {
             for y in 0..SCREEN_HEIGHT {
-                for _ in 0..12 {
-                    new_colors.push(if p.borrow().get_pixel_at(x as u8, y as u8) {
-                        0.0
+                for _ in 0..4 {
+                    new_colors.extend(if p.get_pixel_at(x as u8, y as u8) {
+                        foreground_color
                     } else {
-                        1.0
-                    })
+                        background_color
+                    });
                 }
             }
         }
