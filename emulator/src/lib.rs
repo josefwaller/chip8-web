@@ -1,15 +1,13 @@
 pub mod web_gl;
 
+use js_sys::Array;
 use rust_chip8_opengl::processor::Processor;
-use std::{array, cell::RefCell, panic, rc::Rc};
+use std::{array, panic};
 use wasm_bindgen::prelude::*;
 use web_gl::{
     buffer_data_f32, create_buffer_f32, create_buffer_i32, create_program, create_vertex_array,
 };
-use web_sys::{
-    Document, Event, HtmlCanvasElement, HtmlElement, HtmlInputElement, WebGl2RenderingContext,
-    Window,
-};
+use web_sys::{HtmlCanvasElement, WebGl2RenderingContext, WebGlBuffer, Window};
 
 #[wasm_bindgen]
 extern "C" {
@@ -21,46 +19,11 @@ fn get_window() -> Window {
     web_sys::window().expect("no global `window` exists")
 }
 
-fn get_document() -> Document {
-    get_window().document().expect("Could not get document")
-}
-
-fn get_element_by_id(id: &str) -> HtmlElement {
-    get_document()
-        .get_element_by_id(id)
-        .expect(format!("Could not find element with id #{}", id).as_str())
-        .dyn_ref::<HtmlElement>()
-        .expect(format!("Could not cast #{} to HtmlElement", id).as_str())
-        .to_owned()
-}
-
-fn get_input_by_id(id: &str) -> HtmlInputElement {
-    get_element_by_id(id)
-        .dyn_into::<HtmlInputElement>()
-        .expect(format!("Could not cast #{} into an HtmlInputElement", id).as_str())
-}
-
-fn add_input_event_listener<F: FnMut(&str) + 'static>(
-    id: &'static str,
-    event_type: &'static str,
-    mut callback: F,
-) {
-    let f = Closure::<dyn FnMut(_)>::new(move |e: Event| {
-        let value = e
-            .current_target()
-            .expect(format!("{} event on #{} had no current_target!", event_type, id).as_str())
-            .dyn_into::<HtmlInputElement>()
-            .expect(format!("Could not convert #{} to HtmlInputElement", id).as_str())
-            .value()
-            .as_str()
-            .to_owned();
-        callback(&value);
-    });
-    get_input_by_id(id)
-        .add_event_listener_with_callback(event_type, f.as_ref().unchecked_ref())
-        .expect(format!("Unable to add ann event listener on #{}", id).as_str());
-    // Carefull!!!
-    f.forget();
+fn now() -> f64 {
+    get_window()
+        .performance()
+        .expect("Can't get performance!")
+        .now()
 }
 
 fn hex_string_to_color(hex: &str) -> [f32; 3] {
@@ -88,32 +51,15 @@ fn get_canvas() -> WebGl2RenderingContext {
         .expect("Could not cast into rendering context")
 }
 
-/*
- * This should contain everything that needs to be passed between JS and rust
- * Set using onChange events, then accessed in the main loop
- */
-struct EmulatorInfo {
-    p: Processor,
-    inputs: [bool; 16],
-    foreground_color: [f32; 3],
-    background_color: [f32; 3],
+const SCREEN_WIDTH: usize = 64;
+const SCREEN_HEIGHT: usize = 32;
+
+struct RenderInfo {
+    context: WebGl2RenderingContext,
+    colors_buf: WebGlBuffer,
+    indices_len: usize,
 }
-
-#[wasm_bindgen]
-pub fn start_main_loop(rom: &[u8]) {
-    let emu = Rc::new(RefCell::new(EmulatorInfo {
-        p: Processor::new(),
-        inputs: [false; 16],
-        foreground_color: [1.0, 1.0, 1.0],
-        background_color: [0.0, 0.0, 0.0],
-    }));
-    emu.borrow_mut().p.load_program(rom);
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
-    log("Starting main loop");
-
-    let r: Rc<RefCell<Option<Closure<dyn FnMut()>>>> = Rc::new(RefCell::new(None));
-    let r_clone = r.clone();
-
+fn init_wegl() -> RenderInfo {
     let context = get_canvas();
 
     let program = create_program(&context);
@@ -122,8 +68,6 @@ pub fn start_main_loop(rom: &[u8]) {
     const MAX_X: f32 = 1.0;
     const MIN_Y: f32 = 1.0;
     const MAX_Y: f32 = -1.0;
-    const SCREEN_WIDTH: usize = 64;
-    const SCREEN_HEIGHT: usize = 32;
     const PIXEL_WIDTH: f32 = (MAX_X - MIN_X) / SCREEN_WIDTH as f32;
     const PIXEL_HEIGHT: f32 = (MAX_Y - MIN_Y) / SCREEN_HEIGHT as f32;
 
@@ -190,9 +134,9 @@ pub fn start_main_loop(rom: &[u8]) {
         .flatten()
         .collect();
     // Create buffer
-    let colors_buffer = create_buffer_f32(&context, WebGl2RenderingContext::ARRAY_BUFFER, colors);
+    let colors_buf = create_buffer_f32(&context, WebGl2RenderingContext::ARRAY_BUFFER, colors);
     // Point GLSL 'color' variable to the array
-    context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&colors_buffer));
+    context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&colors_buf));
     let cidx = context.get_attrib_location(&program, "color");
     context.vertex_attrib_pointer_with_i32(
         cidx as u32,
@@ -204,90 +148,63 @@ pub fn start_main_loop(rom: &[u8]) {
     );
     context.enable_vertex_attrib_array(cidx as u32);
 
-    let emu_clone = emu.clone();
-    add_input_event_listener("foreground-color", "change", move |v| {
-        emu_clone.borrow_mut().foreground_color = hex_string_to_color(v);
-    });
-    let emu_clone = emu.clone();
-    add_input_event_listener("background-color", "change", move |v| {
-        emu_clone.borrow_mut().background_color = hex_string_to_color(v);
-    });
-
-    for i in 0..16 {
-        let emu_clone = emu.clone();
-        let on_click = Closure::<dyn FnMut()>::new(move || {
-            emu_clone.borrow_mut().inputs[i] = true;
-        });
-        let id = format!("input_{}", i).as_str().to_owned();
-
-        get_element_by_id(&id)
-            .add_event_listener_with_callback("mousedown", on_click.as_ref().unchecked_ref())
-            .expect("Unable to add mousedown event listener");
-        on_click.forget();
-
-        let emu_clone = emu.clone();
-        let on_release = Closure::<dyn FnMut()>::new(move || {
-            emu_clone.borrow_mut().inputs[i] = false;
-            emu_clone.borrow_mut().p.on_key_release(i as u8);
-        });
-        get_element_by_id(&id)
-            .add_event_listener_with_callback("mouseup", on_release.as_ref().unchecked_ref())
-            .expect("Unable to add mouseup event listener");
-        on_release.forget();
+    RenderInfo {
+        context,
+        colors_buf,
+        indices_len,
     }
+}
+/*
+ * This should contain everything that needs to be passed between JS and rust
+ * Set using onChange events, then accessed in the main loop
+ */
+#[wasm_bindgen]
+pub struct EmulatorInfo {
+    p: Processor,
+    // Last time, used for frame rate/number of steps to advance
+    lt: f64,
+    // Last clock time, used for the sound and delay registers
+    lct: f64,
+    ri: RenderInfo,
+}
 
-    let mut last_time = get_window()
-        .performance()
-        .expect("Can't get performance!")
-        .now();
-    let mut last_tick_time = last_time;
+#[wasm_bindgen]
+impl EmulatorInfo {
+    pub fn update(&mut self, inputs: &Array, clock_speed: f64, last_key_up: &JsValue) {
+        //log(format!("{:?}", inputs).as_str());
+        let i: [bool; 16] = inputs
+            .iter()
+            .map(|v| v.as_bool().unwrap())
+            .collect::<Vec<bool>>()
+            .try_into()
+            .expect("Error collecting inputs");
+        self.p.update_inputs(i);
 
-    let emu_clone = emu.clone();
-    *r_clone.borrow_mut() = Some(Closure::new(move || {
-        let mut e = emu_clone.borrow_mut();
-        let inputs = e.inputs;
-        let foreground_color = e.foreground_color;
-        let background_color = e.background_color;
-        let p = &mut e.p;
-        let clock_speed = get_document()
-            .get_element_by_id("clock-speed")
-            .expect("Could not get clock-speed")
-            .dyn_into::<HtmlInputElement>()
-            .unwrap()
-            .value_as_number();
-        let new_time = get_window()
-            .performance()
-            .expect("Can't get performance!")
-            .now();
-
-        if new_time - last_tick_time >= 1000.0 / 60.0 {
-            p.on_tick();
-            last_tick_time = new_time;
+        match last_key_up.as_f64() {
+            Some(i) => self.p.on_key_release(i as u8),
+            None => {}
         }
-        let dt = new_time - last_time;
 
-        p.update_inputs(inputs);
-
+        let t = now();
+        if t - self.lct > 1000.0 / 60.0 {
+            self.p.on_tick();
+            self.lct = t;
+        }
+        let dt = t - self.lt;
         let n_steps = (dt / 1000.0 * clock_speed) as u32;
         for _ in 0..n_steps {
-            p.step();
+            self.p.step();
         }
-        // Uncomment this for logging
-        // log(format!(
-        //     "DT: {:?}, FPS: {:?}, N Steps: {:?}, Clock Speed: {:?}",
-        //     dt,
-        //     1000.0 / dt,
-        //     n_steps,
-        //     clock_speed
-        // )
-        // .as_str());
-        last_time = new_time;
-
+        self.lt = t;
+    }
+    pub fn render(&self, foreground_color_str: &str, background_color_str: &str) {
+        let foreground_color = hex_string_to_color(foreground_color_str);
+        let background_color = hex_string_to_color(background_color_str);
         let mut new_colors = Vec::new();
         for x in 0..SCREEN_WIDTH {
             for y in 0..SCREEN_HEIGHT {
                 for _ in 0..4 {
-                    new_colors.extend(if p.get_pixel_at(x as u8, y as u8) {
+                    new_colors.extend(if self.p.get_pixel_at(x as u8, y as u8) {
                         foreground_color
                     } else {
                         background_color
@@ -295,26 +212,31 @@ pub fn start_main_loop(rom: &[u8]) {
                 }
             }
         }
-
         buffer_data_f32(
-            &context,
-            &colors_buffer,
+            &self.ri.context,
+            &self.ri.colors_buf,
             WebGl2RenderingContext::ARRAY_BUFFER,
             new_colors,
         );
 
-        context.draw_elements_with_i32(
+        self.ri.context.draw_elements_with_i32(
             WebGl2RenderingContext::TRIANGLES,
-            indices_len as i32,
+            self.ri.indices_len as i32,
             WebGl2RenderingContext::UNSIGNED_INT,
             0,
         );
-        get_window()
-            .request_animation_frame(r.borrow().as_ref().unwrap().as_ref().unchecked_ref())
-            .expect("Couldn't request animation frame");
-    }));
+    }
+}
+#[wasm_bindgen]
+pub fn setup(rom: &[u8]) -> EmulatorInfo {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+    let mut emu = EmulatorInfo {
+        p: Processor::new(),
+        lt: now(),
+        lct: now(),
+        ri: init_wegl(),
+    };
+    emu.p.load_program(rom);
 
-    get_window()
-        .request_animation_frame(r_clone.borrow().as_ref().unwrap().as_ref().unchecked_ref())
-        .expect("Couldn't request animation frame");
+    emu
 }

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
-import init, { start_main_loop } from "emulator";
+import init, { setup } from "emulator";
 
 import wasmData from "emulator/emulator_bg.wasm";
 await init(wasmData);
@@ -8,31 +8,47 @@ await init(wasmData);
 import * as styles from "./App.module.scss";
 
 export default function App() {
-  const [inputStates, setInputStates] = useState(
-    Object.fromEntries([...Array(16)].map((_, i) => [i, false]))
-  );
-  const pressInput = (i) =>
-    setInputStates({
-      ...inputStates,
-      [i]: true,
-    });
-  const releaseInput = (i) =>
-    setInputStates({
-      ...inputStates,
-      [i]: false,
-    });
+  const inputStates = useRef([...Array(16)].map((_, i) => false));
+  const lastKeyUp = useRef(null);
+  const [emuState, setEmuState] = useState(null);
+  const pressInput = (i) => {
+    inputStates.current.splice(i, 1, true);
+  };
+  const releaseInput = (i) => {
+    if (inputStates.current[i]) {
+      inputStates.current.splice(i, 1, false);
+      lastKeyUp.current = i;
+    }
+  };
 
   useEffect(() => {
     document.getElementById("rom-input").addEventListener("change", (event) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        console.log(e);
-        console.log(e.target.result);
-        start_main_loop(new Uint8Array(e.target.result));
+        setEmuState(setup(new Uint8Array(e.target.result)));
       };
       reader.readAsArrayBuffer(event.target.files[0]);
     });
   });
+
+  const loopFn = () => {
+    emuState.update(
+      inputStates.current,
+      document.getElementById("clock-speed").value,
+      lastKeyUp.current
+    );
+    emuState.render(
+      document.getElementById("foreground-color").value,
+      document.getElementById("background-color").value
+    );
+    lastKeyUp.current = null;
+    requestAnimationFrame(loopFn);
+  };
+
+  useEffect(() => {
+    if (emuState == null) return;
+    requestAnimationFrame(loopFn);
+  }, [emuState]);
 
   return (
     <div className={styles.container}>
@@ -48,7 +64,13 @@ export default function App() {
         ].map((k) => (
           <React.Fragment key={k}>
             <div className={styles.buttonContainer} key={k}>
-              <button className={styles.button} id={`input_${k}`}>
+              <button
+                className={styles.button}
+                id={`input_${k}`}
+                onMouseDown={() => pressInput(k)}
+                onMouseUp={() => releaseInput(k)}
+                onMouseLeave={() => releaseInput(k)}
+              >
                 {k.toString(16).toUpperCase()}
               </button>
             </div>
