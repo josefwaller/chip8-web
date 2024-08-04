@@ -1,5 +1,6 @@
 body {
-  background-color: #444444;
+  background-color: #181818;
+  font-family: "Pixelify Sans", sans-serif;
 }
 
 .container {
@@ -7,31 +8,122 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
+  padding: 1rem;
 }
 .canvas {
   width: 800px;
   height: 400px;
-  background-color: white;
-  margin: 2rem;
+  background-color: var(--bg);
+  border: 2px solid black;
+  border-radius: 5px;
 }
 .inputs {
-  margin-top: 5rem;
+  margin: 2rem;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  width: 15rem;
+  width: 16rem;
+}
+
+.inputButtonContainer {
+  flex-basis: 25%;
+  text-align: center;
+  .inputButton {
+    width: 4rem;
+    height: 4rem;
+  }
 }
 
 .buttonContainer {
-  flex-basis: 25%;
-  text-align: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: stretch;
+  align-content: stretch;
+  width: 16rem;
   .button {
-    width: 2rem;
-    height: 2rem;
-    background-color: white;
-    text-align: center;
+    flex: 1 1 0;
   }
+}
+
+.button {
+  text-align: center;
+  border: 0;
+  box-sizing: border-box;
+  border: 1px solid black;
+  background-color: var(--bg);
+  color: var(--fg);
+  padding: 1rem;
+  &:active {
+    color: var(--bg);
+    background-color: var(--fg);
+  }
+}
+
+* {
+  font-family: "Pixelify Sans", sans-serif;
+}
+
+:global(.settingsPopup-overlay) {
+  background-color: rgba(#000000, 0.5);
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: var(--bg);
+  padding: 0.5rem 1rem;
+  border: 1px solid black;
+  border-radius: 0.5rem;
+  color: var(--fg);
+
+  .settingsTitle {
+    font-size: 1.5rem;
+  }
+  .colorSettings {
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    div {
+      text-align: center;
+    }
+  }
+  .clockSpeedSettings {
+    height: 2.5rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: stretch;
+    div {
+      text-align: center;
+    }
+
+    .bar {
+      background-color: var(--fg);
+      margin: 0.5rem 0;
+      &:hover {
+        background-color: var(--fg);
+        :global(.rs-slier-bar) {
+          background-color: var(--fg);
+        }
+      }
+    }
+    .handle {
+      border: 0;
+
+      &::before {
+        background-color: var(--fg);
+        border-color: var(--bg);
+      }
+    }
+  }
+}
+
+.romButton {
+  background-color: var(--bg);
+  color: var(--fg);
+  border: 1px solid black;
 }
