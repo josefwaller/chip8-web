@@ -11,8 +11,7 @@ body {
   padding: 1rem;
 }
 .canvas {
-  width: 800px;
-  height: 400px;
+  width: 100%;
   background-color: var(--bg);
   border: 2px solid black;
   border-radius: 5px;
@@ -89,6 +88,10 @@ body {
     padding: 0.5rem 0;
     div {
       text-align: center;
+    }
+
+    @media all and (max-width: 800px) {
+      flex-direction: column;
     }
   }
   .clockSpeedSettings {

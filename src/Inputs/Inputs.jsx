@@ -59,6 +59,9 @@ export default function Inputs({ pressInput, releaseInput }) {
               onMouseDown={() => onInputPress(k)}
               onMouseUp={() => onInputRelease(k)}
               onMouseLeave={() => onInputRelease(k)}
+              onTouchStart={() => onInputPress(k)}
+              onTouchEnd={() => onInputRelease(k)}
+              onTouchCancel={() => onInputRelease(k)}
             >
               {k.toString(16).toUpperCase()}
             </button>
