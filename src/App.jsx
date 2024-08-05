@@ -16,8 +16,8 @@ const DEFAULT_VOLUME = 0.1;
 
 export default function App() {
   const inputStates = useRef([...Array(16)].map((_, i) => false));
-  const fg = useRef("#bc4d47");
-  const bg = useRef("#340e0b");
+  const fg = useRef("#aa5656");
+  const bg = useRef("#481818");
   // Gain used to control whether or not the beep should play
   // Set to 0 when ST = 0 and 1 otherwise
   const controlGain = useRef(null);
