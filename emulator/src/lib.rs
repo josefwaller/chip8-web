@@ -34,7 +34,7 @@ pub struct EmulatorInfo {
 
 #[wasm_bindgen]
 impl EmulatorInfo {
-    pub fn update(&mut self, inputs: &Array, clock_speed: f64, last_key_up: &JsValue) {
+    pub fn update(&mut self, inputs: &Array, clock_speed: f64) {
         //log(format!("{:?}", inputs).as_str());
         let i: [bool; 16] = inputs
             .iter()
@@ -44,11 +44,6 @@ impl EmulatorInfo {
             .expect("Error collecting inputs");
         self.p.update_inputs(i);
 
-        match last_key_up.as_f64() {
-            Some(i) => self.p.on_key_release(i as u8),
-            None => {}
-        }
-
         let t = now();
         if t - self.lct > 1000.0 / 60.0 {
             self.p.on_tick();
@@ -57,7 +52,7 @@ impl EmulatorInfo {
         let dt = t - self.lt;
         let n_steps = (dt / 1000.0 * clock_speed) as u32;
         for _ in 0..n_steps {
-            self.p.step();
+            self.p.step().ok();
         }
         self.lt = t;
     }
