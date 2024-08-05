@@ -36,6 +36,20 @@ pub struct EmulatorInfo {
 
 #[wasm_bindgen]
 impl EmulatorInfo {
+    #[wasm_bindgen(constructor)]
+    pub fn new(rom: &[u8]) -> EmulatorInfo {
+        panic::set_hook(Box::new(console_error_panic_hook::hook));
+        let mut emu = EmulatorInfo {
+            p: Processor::new(),
+            lt: now(),
+            lct: now(),
+            ri: init_wegl(),
+            sound: false,
+        };
+        emu.p.load_program(rom);
+
+        emu
+    }
     pub fn update(&mut self, inputs: &Array, clock_speed: f64) {
         let i: [bool; 16] = inputs
             .iter()
@@ -92,18 +106,4 @@ impl EmulatorInfo {
     pub fn get_sound(&self) -> bool {
         return self.sound;
     }
-}
-#[wasm_bindgen]
-pub fn setup(rom: &[u8]) -> EmulatorInfo {
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
-    let mut emu = EmulatorInfo {
-        p: Processor::new(),
-        lt: now(),
-        lct: now(),
-        ri: init_wegl(),
-        sound: false,
-    };
-    emu.p.load_program(rom);
-
-    emu
 }

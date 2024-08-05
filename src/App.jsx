@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-import init, { setup } from "emulator";
+import init, { EmulatorInfo, setup } from "emulator";
 
 import wasmData from "emulator/emulator_bg.wasm";
 await init(wasmData);
@@ -46,7 +46,7 @@ export default function App() {
   };
 
   const loadProgram = (bytes) => {
-    setEmuState(setup(bytes));
+    setEmuState(new EmulatorInfo(bytes));
     if (sound.current === null) {
       initSound();
     }
