@@ -40,6 +40,10 @@ module.exports = {
           "sass-loader",
         ],
       },
+      {
+        test: /.rom$/,
+        type: "asset/resource",
+      },
     ],
   },
 };
