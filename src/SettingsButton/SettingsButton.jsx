@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 import { HexColorPicker } from "react-colorful";
 import { Slider } from "rsuite";
@@ -10,6 +10,15 @@ export default function Settings({ fg, bg, clockSpeed, volume, setVolume }) {
   const updateColors = () => {
     document.documentElement.style.cssText = `--fg: ${fg.current}; --bg: ${bg.current}; --rs-slider-hover-bar: ${fg.current};`;
   };
+
+  // Store all the settings in a state so that the components are rerendered when they are changed
+  // Otherwise the settings aren't kept in sync with the refs
+  const [allSettings, setSettings] = useState({
+    fg: fg.current,
+    bg: bg.current,
+    clockSpeed: clockSpeed.current,
+    volume: volume,
+  });
 
   // Initialise colours
   useEffect(updateColors, []);
@@ -29,6 +38,7 @@ export default function Settings({ fg, bg, clockSpeed, volume, setVolume }) {
               color={fg.current}
               onChange={(c) => {
                 fg.current = c;
+                setSettings({ ...allSettings, fg: c });
                 updateColors();
               }}
             />
@@ -36,9 +46,10 @@ export default function Settings({ fg, bg, clockSpeed, volume, setVolume }) {
           <div>
             Background colour
             <HexColorPicker
-              color={bg.current}
+              color={allSettings.bg}
               onChange={(c) => {
                 bg.current = c;
+                setSettings({ ...allSettings, bg: c });
                 updateColors();
               }}
             />
@@ -50,8 +61,11 @@ export default function Settings({ fg, bg, clockSpeed, volume, setVolume }) {
             <Slider
               min={10}
               max={2000}
-              defaultValue={clockSpeed.current}
-              onChange={(v) => (clockSpeed.current = v)}
+              defaultValue={allSettings.clockSpeed}
+              onChange={(v) => {
+                clockSpeed.current = v;
+                setSettings({ ...allSettings, clockSpeed: v });
+              }}
               barClassName={styles.bar}
               handleClassName={styles.handle}
             />
@@ -64,8 +78,11 @@ export default function Settings({ fg, bg, clockSpeed, volume, setVolume }) {
               min={0}
               max={1}
               step={0.01}
-              defaultValue={volume}
-              onChange={setVolume}
+              defaultValue={allSettings.volume}
+              onChange={(v) => {
+                setVolume(v);
+                setSettings({ ...allSettings, volume: v });
+              }}
               barClassName={styles.bar}
               handleClassName={styles.handle}
             />
