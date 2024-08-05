@@ -55,7 +55,8 @@ body {
   background-color: var(--bg);
   color: var(--fg);
   padding: 1rem;
-  &:active {
+  &:active,
+  &.active {
     color: var(--bg);
     background-color: var(--fg);
   }

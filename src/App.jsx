@@ -22,18 +22,51 @@ export default function App() {
   const frameId = useRef(null);
   const pressInput = (i) => {
     inputStates.current.splice(i, 1, true);
+    document.getElementById(`input-${i}`).classList.add(styles.active);
     updateColors();
   };
   const releaseInput = (i) => {
     if (inputStates.current[i]) {
       inputStates.current.splice(i, 1, false);
       lastKeyUp.current = i;
+      document.getElementById(`input-${i}`).classList.remove(styles.active);
       updateColors();
     }
   };
+  const KEY_MAP = [
+    "x",
+    "1",
+    "2",
+    "3",
+    "q",
+    "w",
+    "e",
+    "a",
+    "s",
+    "d",
+    "z",
+    "c",
+    "4",
+    "r",
+    "f",
+    "v",
+  ];
 
   // Setup stuff
   useEffect(() => {
+    document.body.onkeydown = (e) => {
+      if (e.repeat) return;
+      let i = KEY_MAP.indexOf(e.key);
+      if (i != -1) {
+        pressInput(i);
+      }
+    };
+    document.body.onkeyup = (e) => {
+      let i = KEY_MAP.indexOf(e.key);
+      if (i != -1) {
+        releaseInput(i);
+      }
+    };
     document.getElementById("rom-input").addEventListener("change", (event) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -72,7 +105,9 @@ export default function App() {
           <React.Fragment key={k}>
             <div className={styles.inputButtonContainer} key={k}>
               <button
-                className={classNames(styles.button, styles.inputButton)}
+                className={classNames(styles.button, styles.inputButton, {
+                  [styles.active]: inputStates.current[k],
+                })}
                 id={`input-${k}`}
                 onMouseDown={() => pressInput(k)}
                 onMouseUp={() => releaseInput(k)}
