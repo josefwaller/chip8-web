@@ -6,7 +6,7 @@ import Popup from "reactjs-popup";
 
 import * as styles from "../App.module.scss";
 
-export default function Settings({ fg, bg, clockSpeed }) {
+export default function Settings({ fg, bg, clockSpeed, volume, setVolume }) {
   const updateColors = () => {
     document.documentElement.style.cssText = `--fg: ${fg.current}; --bg: ${bg.current}; --rs-slider-hover-bar: ${fg.current};`;
   };
@@ -52,6 +52,20 @@ export default function Settings({ fg, bg, clockSpeed }) {
               max={2000}
               defaultValue={clockSpeed.current}
               onChange={(v) => (clockSpeed.current = v)}
+              barClassName={styles.bar}
+              handleClassName={styles.handle}
+            />
+          </div>
+        </div>
+        <div className={styles.clockSpeedSettings}>
+          <div>Volume</div>
+          <div>
+            <Slider
+              min={0}
+              max={1}
+              step={0.01}
+              defaultValue={volume}
+              onChange={setVolume}
               barClassName={styles.bar}
               handleClassName={styles.handle}
             />

@@ -30,12 +30,13 @@ pub struct EmulatorInfo {
     // Last clock time, used for the sound and delay registers
     lct: f64,
     ri: RenderInfo,
+    // bool that is true if ST > 0, i.e. if the browser should make a sound
+    sound: bool,
 }
 
 #[wasm_bindgen]
 impl EmulatorInfo {
     pub fn update(&mut self, inputs: &Array, clock_speed: f64) {
-        //log(format!("{:?}", inputs).as_str());
         let i: [bool; 16] = inputs
             .iter()
             .map(|v| v.as_bool().unwrap())
@@ -55,6 +56,7 @@ impl EmulatorInfo {
             self.p.step().ok();
         }
         self.lt = t;
+        self.sound = self.p.get_st() > 0;
     }
     pub fn render(&self, foreground_color_str: &str, background_color_str: &str) {
         let foreground_color = hex_string_to_color(foreground_color_str);
@@ -85,6 +87,11 @@ impl EmulatorInfo {
             0,
         );
     }
+
+    #[wasm_bindgen(js_name = getSound)]
+    pub fn get_sound(&self) -> bool {
+        return self.sound;
+    }
 }
 #[wasm_bindgen]
 pub fn setup(rom: &[u8]) -> EmulatorInfo {
@@ -94,6 +101,7 @@ pub fn setup(rom: &[u8]) -> EmulatorInfo {
         lt: now(),
         lct: now(),
         ri: init_wegl(),
+        sound: false,
     };
     emu.p.load_program(rom);
 
