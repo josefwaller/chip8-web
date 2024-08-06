@@ -63,6 +63,8 @@ body {
   background-color: var(--bg);
   color: var(--fg);
   padding: 1rem;
+  -webkit-user-select: none;
+  user-select: none;
   &:active,
   &.active {
     color: var(--bg);
