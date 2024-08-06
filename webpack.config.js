@@ -45,6 +45,10 @@ module.exports = {
         test: /.rom$/,
         type: "asset/resource",
       },
+      {
+        test: /\.(ttf)$/i,
+        type: "asset/resource",
+      },
     ],
   },
 };
