@@ -12,6 +12,7 @@ module.exports = {
     new HtmlWebpackPlugin({
       title: "CHIP-8 Web Emulator",
       template: "./index.html",
+      favicon: "./src/favicon.ico",
     }),
   ],
   devServer: {
