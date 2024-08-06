@@ -86,6 +86,13 @@ body {
   border-radius: 0.5rem;
   color: var(--fg);
 
+  .button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: transparent;
+    border: none;
+  }
   .settingsTitle {
     font-size: 1.5rem;
   }
