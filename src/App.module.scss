@@ -20,7 +20,8 @@ body {
   padding: 1rem;
 }
 .canvas {
-  width: 100%;
+  max-height: 50%;
+  max-width: 100%;
   background-color: var(--bg);
   border: 2px solid black;
   border-radius: 5px;
