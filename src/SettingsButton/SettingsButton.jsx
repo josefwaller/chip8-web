@@ -33,7 +33,7 @@ export default function Settings({ fg, bg, clockSpeed, volume, setVolume }) {
         <span className={styles.settingsTitle}>Settings</span>
         <div className={styles.colorSettings}>
           <div>
-            Foreground color
+            <div className={styles.colorTitle}>Foreground color</div>
             <HexColorPicker
               color={fg.current}
               onChange={(c) => {
@@ -44,7 +44,7 @@ export default function Settings({ fg, bg, clockSpeed, volume, setVolume }) {
             />
           </div>
           <div>
-            Background colour
+            <div className={styles.colorTitle}>Background color</div>
             <HexColorPicker
               color={allSettings.bg}
               onChange={(c) => {
