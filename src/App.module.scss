@@ -42,6 +42,10 @@ body {
   .inputButton {
     width: 4rem;
     height: 4rem;
+    .keyMapKey {
+      font-size: 0.6rem;
+      opacity: 0.5;
+    }
   }
 }
 
