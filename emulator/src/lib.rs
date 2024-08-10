@@ -72,7 +72,7 @@ impl EmulatorInfo {
         self.lt = t;
         self.sound = self.p.get_st() > 0;
     }
-    pub fn render(&self, foreground_color_str: &str, background_color_str: &str) {
+    pub fn render(&mut self, foreground_color_str: &str, background_color_str: &str) {
         let foreground_color = hex_string_to_color(foreground_color_str);
         let background_color = hex_string_to_color(background_color_str);
         let mut new_colors = Vec::new();
@@ -100,6 +100,7 @@ impl EmulatorInfo {
             WebGl2RenderingContext::UNSIGNED_INT,
             0,
         );
+        self.p.on_v_blank();
     }
 
     #[wasm_bindgen(js_name = getSound)]
