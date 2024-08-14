@@ -25,7 +25,7 @@ export default function App() {
   const volumeGain = useRef(null);
   // The actual sound, just used as a flag to check if it has been initialized or not
   const sound = useRef(null);
-  const clockSpeed = useRef(500);
+  const clockSpeed = useRef(450);
   const [emuState, setEmuState] = useState(null);
   const frameId = useRef(null);
 
