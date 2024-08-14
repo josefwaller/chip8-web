@@ -64,7 +64,7 @@ export default function Inputs({ pressInput, releaseInput }) {
               onTouchCancel={() => onInputRelease(k)}
             >
               <div>{k.toString(16).toUpperCase()}</div>
-              <div className={styles.keyMapKey}>{KEY_MAP[k]}</div>
+              <div className={styles.keyMapKey}>{KEY_MAP[k].toUpperCase()}</div>
             </button>
           </div>
         </React.Fragment>
