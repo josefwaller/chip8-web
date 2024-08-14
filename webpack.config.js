@@ -42,7 +42,7 @@ module.exports = {
         ],
       },
       {
-        test: /.rom$/,
+        test: /.ch8$/,
         type: "asset/resource",
       },
       {
