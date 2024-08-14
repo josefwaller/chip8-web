@@ -45,9 +45,9 @@ export default function App() {
     frameId.current = requestAnimationFrame(loopFn);
   };
 
-  const loadProgram = (bytes) => {
+  const loadProgram = (bytes, isSplash = false) => {
     setEmuState(new EmulatorInfo(bytes));
-    if (sound.current === null) {
+    if (sound.current === null && !isSplash) {
       initSound();
     }
   };
@@ -64,7 +64,7 @@ export default function App() {
   const initSound = () => {
     const context = controlGain.current.context;
     const o = context.createOscillator();
-    o.type = "sin";
+    o.type = "triangle";
     o.frequency.setValueAtTime(440, context.currentTime); // value in hertz
     o.connect(controlGain.current);
     o.start(0);

@@ -25,7 +25,9 @@ export default function RomButton({ loadProgram }) {
   // Fetch the BAD ROM rom
   useEffect(() => {
     loadRom(BAD_ROM_URL, badRom, () => {});
-    loadRom(SPLASH_ROM_URL, splashRom, () => loadProgram(splashRom.current));
+    loadRom(SPLASH_ROM_URL, splashRom, () =>
+      loadProgram(splashRom.current, true)
+    );
   }, []);
 
   const loadRom = (url, romRef, callback) => {
